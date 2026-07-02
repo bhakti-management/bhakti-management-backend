@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # Database Service
+  db:
+    image: postgres:16-alpine
+    container_name: bhakti-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: SecretDBPassword123!
+      POSTGRES_DB: bhakti_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bhakti_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Application Service (Backend + Bundled Admin Panel)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bhakti-app
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - JWT_SECRET=BhaktiConsultancySuperSecureSecretJWTKey98765
+      - DATABASE_URL=postgresql://postgres:SecretDBPassword123!@db:5432/bhakti_db?schema=public
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+    driver: local
