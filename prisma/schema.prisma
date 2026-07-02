@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(RECRUITER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}
+
+enum Role {
+  SUPERADMIN
+  RECRUITER
+}
+
+model Job {
+  id           String      @id @default(uuid())
+  title        String
+  description  String      // Store job description (Markdown or Rich Text)
+  department   String
+  location     String
+  type         JobType     @default(FULL_TIME)
+  salaryRange  String?
+  status       JobStatus   @default(DRAFT)
+  requirements String[]    // Array of requirements
+  benefits     String[]    // Array of benefits
+  candidates   Candidate[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@map("jobs")
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERNSHIP
+}
+
+enum JobStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+model Candidate {
+  id          String          @id @default(uuid())
+  name        String
+  email       String
+  phone       String
+  resumePath  String          // Path to the file stored locally on the server
+  coverLetter String?
+  jobId       String?
+  job         Job?            @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  status      CandidateStatus @default(APPLIED)
+  notes       String?         // Recruiter notes
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("candidates")
+}
+
+enum CandidateStatus {
+  APPLIED
+  REVIEWED
+  SHORTLISTED
+  INTERVIEWED
+  REJECTED
+  HIRED
+}
+
+model Enquiry {
+  id        String        @id @default(uuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  status    EnquiryStatus @default(UNREAD)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@map("enquiries")
+}
+
+enum EnquiryStatus {
+  UNREAD
+  READ
+  RESPONDED
+  ARCHIVED
+}
