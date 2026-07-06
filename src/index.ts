@@ -12,7 +12,7 @@ import jobRoutes from './routes/jobs';
 import candidateRoutes from './routes/candidates';
 import enquiryRoutes from './routes/enquiries';
 import { errorHandler } from './middleware/error';
-import { prisma } from './config/db';
+import { prisma, pool } from './config/db';
 import { logger, loggerStream } from './utils/logger';
 
 const app = express();
@@ -131,6 +131,10 @@ const gracefulShutdown = async (signal: string) => {
     // Disconnect Prisma Client
     await prisma.$disconnect();
     logger.info('✔ Prisma Client disconnected.');
+
+    // Close pg connection pool
+    await pool.end();
+    logger.info('✔ PostgreSQL connection pool closed.');
 
     logger.info('👋 Graceful shutdown complete. Exiting.');
     process.exit(0);
