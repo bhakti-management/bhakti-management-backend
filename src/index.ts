@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
+import fs from 'fs';
 import 'dotenv/config';
 
 import authRoutes from './routes/auth';
@@ -25,10 +26,13 @@ const PORT = process.env.PORT || 5000;
 // Secure HTTP headers
 app.use(helmet());
 
-// CORS configuration - Allow admin panel requests
 const allowedOrigins = [
   'http://localhost:5173', // Default Vite development port
   'http://localhost:3000', // Alternative React port
+  'https://admin.bhaktimanagement.com', // Production admin subdomain
+  'https://bhaktimanagement.com', // Public site main domain
+  'https://www.bhaktimanagement.com',
+  'https://api.bhaktimanagement.com',
 ];
 
 app.use(
@@ -85,6 +89,14 @@ app.use('/api/auth/login', loginLimiter);
 // However, exposing it statically is okay for testing, but let's expose it with a safety path.)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// Health check endpoint (public and database-independent)
+app.get('/health', (_req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    message: 'Backend is running',
+  });
+});
+
 // ==========================================
 // 3. Mount Routes
 // ==========================================
@@ -93,17 +105,26 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/candidates', candidateRoutes);
 app.use('/api/enquiries', enquiryRoutes);
 
-// Fallback for unmapped API routes
-app.use('/api/*', (_req, res) => {
+// Fallback for unmapped API routes (Express 5 syntax)
+app.use('/api', (_req, res) => {
   res.status(404).json({ message: 'Resource not found' });
 });
 
-// Serve built React dashboard static files
-app.use(express.static(path.join(__dirname, '../client/dist')));
+// Serve built React dashboard static files safely if the folder exists
+const clientDistPath = path.join(__dirname, '../client/dist');
+const indexHtmlPath = path.join(clientDistPath, 'index.html');
 
-// Wildcard fallback for client SPA routing
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+}
+
+// Wildcard fallback for client SPA routing (Express 5 named parameter syntax)
+app.get('/*splat', (_req, res) => {
+  if (fs.existsSync(indexHtmlPath)) {
+    res.sendFile(indexHtmlPath);
+  } else {
+    res.status(200).json({ message: 'Bhakti Management API is running.' });
+  }
 });
 
 // ==========================================
@@ -114,7 +135,7 @@ app.use(errorHandler);
 // ==========================================
 // 5. Start Server & Graceful Shutdown
 // ==========================================
-const server = app.listen(PORT, () => {
+const server = app.listen(Number(PORT), '0.0.0.0', () => {
   logger.info(`🚀 Bhakti Management backend running on http://localhost:${PORT} in ${process.env.NODE_ENV || 'development'} mode.`);
 });
 
@@ -146,3 +167,14 @@ const gracefulShutdown = async (signal: string) => {
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Catch any unhandled promise rejections or exceptions to prevent silent deaths
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
