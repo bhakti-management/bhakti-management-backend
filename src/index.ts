@@ -16,6 +16,8 @@ import { errorHandler } from './middleware/error';
 import { prisma, pool } from './config/db';
 import { logger, loggerStream } from './utils/logger';
 
+
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -88,6 +90,19 @@ app.use('/api/auth/login', loginLimiter);
 // but we will implement download endpoints in the router rather than serving raw files statically if possible.
 // However, exposing it statically is okay for testing, but let's expose it with a safety path.)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+app.get("/", (_req, res) => {
+  res.status(200).json({
+    status: "OK",
+    message: "Bhakti Management Backend API is running",
+    version: "1.0.0",
+    endpoints: {
+      health: "/health",
+      jobs: "/api/jobs",
+      auth: "/api/auth"
+    }
+  });
+});
 
 // Health check endpoint (public and database-independent)
 app.get('/health', (_req, res) => {
